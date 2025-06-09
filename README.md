@@ -1,3 +1,6 @@
 # Dependencias
 
-- Fish shell
+- fish: Fish shell
+- docker: Docker
+- docker-compose: Docker compose script
+- docker-buildx
