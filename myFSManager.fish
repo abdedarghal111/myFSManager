@@ -102,12 +102,14 @@ if not test -d $CACHE_DIR
     echo "Directorio '.cache' creado"
 end
 
+
+
+
 switch $argv[1]
   case "--install"
 
     docker network inspect $globalNetwork >/dev/null 2>&1 && docker network rm $globalNetwork
     docker network create $globalNetwork
-
 
     # install php
     for ver in $PHP_VERSIONS
@@ -196,7 +198,7 @@ switch $argv[1]
 
 
 
-  case "--runTests"
+  case "--runPluginTests"
 
     if ! isPlugin .
         return 1
@@ -259,7 +261,7 @@ switch $argv[1]
 
 
 
-  case "--runExistingFS"
+  case "--runFSTests"
 
     if ! isFS .
         return 1
@@ -303,6 +305,6 @@ switch $argv[1]
   case "*"
     echo "Comandos disponibles:"
     echo "  myFSManager --install"
+    echo "  myFSManager --runPluginTests"
     echo "  myFSManager --runFSTests"
-    echo "  myFSManager --runExistingFS"
 end
