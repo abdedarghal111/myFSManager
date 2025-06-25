@@ -19,17 +19,12 @@ set ROOT_DIR (
 set CACHE_DIR "$ROOT_DIR/.cache"
 set DOCKERS_DIR "$ROOT_DIR/.dockers"
 
-if not test -d $DOCKERS_DIR
-    mkdir -p $DOCKERS_DIR
-    echo "Directorio '.dockers' creado"
-end
+set globalNetwork fs-network
+set mysql mysql-latest-fs-dev
+set mysqlName fsTestMysql
+set adminer adminer-fs-dev
 
-if not test -d $CACHE_DIR
-    mkdir -p $CACHE_DIR
-    echo "Directorio '.cache' creado"
-end
-
-set PHP_VERSIONS 84 82 80
+set PHP_VERSIONS 84 82 80 74 72 70
 set DOCKER_IMAGES adminer mysql:latest
 
 function isPlugin
@@ -49,8 +44,70 @@ function isPlugin
   return 0
 end
 
+function isFS
+    set target $argv[1]
+    set -l missing 0
+
+    for item in Core Dinamic Test
+        if not test -d "$target/$item"
+            set missing 1
+        end
+    end
+
+    for file in .php_cs composer.json package.json phpunit.xml phpunit-plugins.xml
+        if not test -f "$target/$file"
+            set missing 1
+        end
+    end
+
+    if test $missing -eq 1
+        echo "❌ No es un proyecto de FacturaScripts"
+        return 1
+    end
+
+    echo "✅ Es un proyecto principal de FacturaScripts"
+    return 0
+end
+
+function startMySQL
+  docker run -d --rm \
+    --name $mysqlName \
+    --network $globalNetwork \
+    --tmpfs /var/lib/mysql \
+    -e MYSQL_ROOT_PASSWORD=root \
+    -e MYSQL_DATABASE=facturascripts \
+    -p 3306:3306 \
+    $mysql
+
+  echo "⏳ Esperando a que MySQL esté listo..."
+  while not docker exec $mysqlName mysqladmin ping -uroot -proot --silent > /dev/null 2>&1
+    sleep 0.3
+  end
+  sleep 2
+  echo "✅ MySQL listo."
+end
+
+function stopMySQL
+  docker stop $mysqlName
+end
+
+
+if not test -d $DOCKERS_DIR
+    mkdir -p $DOCKERS_DIR
+    echo "Directorio '.dockers' creado"
+end
+
+if not test -d $CACHE_DIR
+    mkdir -p $CACHE_DIR
+    echo "Directorio '.cache' creado"
+end
+
 switch $argv[1]
   case "--install"
+
+    docker network inspect $globalNetwork >/dev/null 2>&1 && docker network rm $globalNetwork
+    docker network create $globalNetwork
+
 
     # install php
     for ver in $PHP_VERSIONS
@@ -110,7 +167,7 @@ switch $argv[1]
     define('FS_ROUTE', '');
 
     define('FS_DB_TYPE', 'mysql');
-    define('FS_DB_HOST', 'fsTestMysql');
+    define('FS_DB_HOST', '$mysqlName');
     define('FS_DB_PORT', '3306');
     define('FS_DB_USER', 'root');
 
@@ -136,6 +193,9 @@ switch $argv[1]
     docker rmi $(docker images -qa -f 'dangling=true')
     echo "✅ Borrados dockers vacios."
 
+
+
+
   case "--runTests"
 
     if ! isPlugin .
@@ -144,25 +204,9 @@ switch $argv[1]
 
     set php php80-cli-fs-dev
     set phpName fsTestPhp
-    set mysql mysql-latest-fs-dev
-    set mysqlName fsTestMysql
-    set adminer adminer-fs-dev
 
     # run mysql
-    docker run -d --rm \
-      --name $mysqlName \
-      --network fs-network \
-      --tmpfs /var/lib/mysql \
-      -e MYSQL_ROOT_PASSWORD=root \
-      -e MYSQL_DATABASE=facturascripts \
-      -p 3306:3306 \
-      $mysql
-
-    echo "⏳ Esperando a que MySQL esté listo..."
-    while not docker exec $mysqlName mysqladmin ping -uroot -proot --silent > /dev/null 2>&1
-      sleep 0.3
-    end
-    echo "✅ MySQL listo."
+    startMySQL
 
     if test -f ./composer.son
       composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
@@ -179,23 +223,90 @@ switch $argv[1]
     composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
     cd $CURRENT_DIR
 
-    docker run -dit \
+    docker run --rm -dit \
       --name $phpName \
-      --network fs-network \
+      --network $globalNetwork \
+      --workdir /root/facturascripts \
+      $php \
+      bash
+      # --tmpfs /root/facturascripts/vendor:rw,size=1024m \
+
+    docker cp $CACHE_DIR/facturascripts/. $phpName:/root/facturascripts &&
+    set PLUGIN_NAME (basename (pwd)) &&
+    docker exec $phpName mkdir -p /root/facturascripts/Plugins/$PLUGIN_NAME &&
+    docker cp . $phpName:/root/facturascripts/Plugins/$PLUGIN_NAME &&
+    docker exec -w /root/facturascripts $phpName composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader &&
+    docker exec -w /root/facturascripts $phpName cp -r Plugins/$PLUGIN_NAME/Test/main/. Test/Plugins/ &&
+    docker exec -w /root/facturascripts/Plugins/$PLUGIN_NAME $phpName bash -c '
+      if [ -f composer.json ]; then
+        composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+      else
+        echo "-------------------------------------------"
+        echo "El plugin no tiene dependencias de Composer"
+        echo "-------------------------------------------"
+      fi
+    ' &&
+    docker exec -w /root/facturascripts $phpName php Test/install-plugins.php &&
+    docker exec -w /root/facturascripts $phpName bash -c '
+      chmod +x ./vendor/bin/phpunit
+      ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
+    '
+
+    docker stop $phpName
+    # docker rm $phpName
+    stopMySQL
+
+
+
+
+
+  case "--runFSTests"
+
+
+
+
+
+  case "--runExistingFS"
+
+    if ! isFS .
+        return 1
+    end
+
+    if ! test -d $CACHE_DIR/facturascripts
+      echo "🚫 No se ha descargado el repositorio de facturascripts."
+      echo "Ejecuta 'myFSManager --install' para descargarlo."
+      echo "Es necesario para extraer un config.php que se genera en --install"
+      return 1
+    end
+
+    set php php80-cli-fs-dev
+    set phpName fsTestPhp
+
+    # run mysql
+    startMySQL
+
+
+    docker run --rm -dit \
+      --name $phpName \
+      --network $globalNetwork \
       --workdir /root/facturascripts \
       $php \
       bash
 
-    docker cp $CACHE_DIR/facturascripts/. $phpName:/root/facturascripts &&
-    docker cp ./Test/main/. $phpName:/root/facturascripts/Test/Plugins &&
-    docker exec -w /root/facturascripts $phpName ls &&
-    docker exec -w /root/facturascripts $phpName composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader &&
-    docker exec -w /root/facturascripts $phpName php Test/install-plugins.php &&
-    docker exec -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+    docker cp . $phpName:/root/facturascripts &&
+    docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
+    docker exec -w /root/facturascripts $phpName cat config.php &&
+    docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-api.xml Test/API/* --verbose
+
+    #./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
 
     docker stop $phpName
-    docker rm $phpName
-    docker stop $mysqlName
-  case "a"
-    ls $CACHE_DIR/facturascripts/
+    stopMySQL
+
+  case "*"
+    echo "Comandos disponibles:"
+    echo "  myFSManager --install"
+    echo "  myFSManager --runFSTests"
+    echo "  myFSManager --runExistingFS"
 end
