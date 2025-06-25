@@ -76,8 +76,8 @@ function startMySQL
     --tmpfs /var/lib/mysql \
     -e MYSQL_ROOT_PASSWORD=root \
     -e MYSQL_DATABASE=facturascripts \
-    -p 3306:3306 \
     $mysql
+    # -p 3307:3306 \
 
   echo "⏳ Esperando a que MySQL esté listo..."
   while not docker exec $mysqlName mysqladmin ping -uroot -proot --silent > /dev/null 2>&1
@@ -170,7 +170,7 @@ switch $argv[1]
 
     define('FS_DB_TYPE', 'mysql');
     define('FS_DB_HOST', '$mysqlName');
-    define('FS_DB_PORT', '3306');
+    define('FS_DB_PORT', '3307');
     define('FS_DB_USER', 'root');
 
     define('FS_DB_NAME', 'facturascripts');
