@@ -259,13 +259,6 @@ switch $argv[1]
 
 
 
-
-  case "--runFSTests"
-
-
-
-
-
   case "--runExistingFS"
 
     if ! isFS .
@@ -303,6 +296,9 @@ switch $argv[1]
 
     docker stop $phpName
     stopMySQL
+
+
+
 
   case "*"
     echo "Comandos disponibles:"
