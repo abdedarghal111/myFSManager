@@ -288,7 +288,7 @@ switch $argv[1]
       $php \
       bash
 
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader &&
     docker cp . $phpName:/root/facturascripts &&
     docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
     docker exec -w /root/facturascripts $phpName cat config.php &&
@@ -302,9 +302,64 @@ switch $argv[1]
 
 
 
+  case "--runFSInstance"
+  
+    set php php80-cli-fs-dev
+    set phpName fsWebPhp
+    set puerto 8088
+
+    if ! isFS .
+        echo "🚫 Este directorio no parece un proyecto FacturaScripts válido."
+        return 1
+    end
+
+    if ! test -d $CACHE_DIR/facturascripts
+        echo "🚫 No se ha descargado el repositorio de FacturaScripts."
+        echo "Ejecuta 'myFSManager --install' para descargarlo."
+        return 1
+    end
+
+    # Iniciar contenedor MySQL
+    startMySQL
+
+    # Crear contenedor PHP
+    docker run --rm -dit \
+        --name $phpName \
+        --network $globalNetwork \
+        --workdir /root/facturascripts \
+        -p $puerto:$puerto \
+        $php \
+        bash
+
+    echo "📦 Instalando dependencias de PHP con Composer..." &&
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader &&
+    echo "📦 Instalando dependencias de JavaScript con NPM..." &&
+    npm install &&
+    echo "📦 Copiando instancia de FacturaScripts..." &&
+    docker cp . $phpName:/root/facturascripts &&
+    echo "⚙️ Sobrescribiendo config.php..." &&
+    docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
+    echo "📦 Injectando el updater a FacturaScripts..." &&
+    docker cp "$ROOT_DIR/Rebuild.php" "$phpName:/root/facturascripts/Rebuild.php" &&
+    echo "⚙️ Ejecutando Rebuild.php..." &&
+    docker exec -it -w /root/facturascripts $phpName php Rebuild.php &&
+    echo "-----------------------------------------------------" &&
+    echo "✅ Instancia ejecutándose en http://localhost:$puerto" &&
+    echo "-----------------------------------------------------" &&
+    docker exec -it -w /root/facturascripts $phpName php -S 0.0.0.0:$puerto -t . index.php
+
+
+    echo "⏹️ Deteniendo $phpName y MySQL"
+    docker stop $phpName
+    stopMySQL
+
+
+
+
   case "*"
     echo "Comandos disponibles:"
     echo "  myFSManager --install"
     echo "  myFSManager --runPluginTests"
     echo "  myFSManager --runFSTests"
+    echo "  myFSManager --runFSInstance"
 end

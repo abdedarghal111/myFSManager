@@ -7,3 +7,4 @@
 - git
 - composer
 - php
+- npm
