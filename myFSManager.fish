@@ -124,6 +124,7 @@ switch $argv[1]
         echo "ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/" >> $FILE
         echo "RUN install-php-extensions json fileinfo simplexml zip dom pdo pdo_mysql mysqli pgsql pdo_pgsql bcmath gd curl soap" >> $FILE
         echo "RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer" >> $FILE
+        echo "RUN apt update && apt install nodejs npm -y" >> $FILE
         # echo "RUN apt update && apt install tree" >> $FILE
         echo "🐳 Construyendo imagen $NAME..."
         docker build --no-cache -f $FILE -t $DOCKER_TAG $DOCKERS_DIR
@@ -170,7 +171,7 @@ switch $argv[1]
 
     define('FS_DB_TYPE', 'mysql');
     define('FS_DB_HOST', '$mysqlName');
-    define('FS_DB_PORT', '3307');
+    define('FS_DB_PORT', '3306');
     define('FS_DB_USER', 'root');
 
     define('FS_DB_NAME', 'facturascripts');
@@ -204,7 +205,7 @@ switch $argv[1]
         return 1
     end
 
-    set php php80-cli-fs-dev
+    set php php82-cli-fs-dev
     set phpName fsTestPhp
 
     # run mysql
@@ -274,7 +275,7 @@ switch $argv[1]
       return 1
     end
 
-    set php php80-cli-fs-dev
+    set php php82-cli-fs-dev
     set phpName fsTestPhp
 
     # run mysql
@@ -304,7 +305,7 @@ switch $argv[1]
 
   case "--runFSInstance"
   
-    set php php80-cli-fs-dev
+    set php php82-cli-fs-dev
     set phpName fsWebPhp
     set puerto 8088
 
@@ -356,10 +357,66 @@ switch $argv[1]
 
 
 
+  case "--runFSPluginIntoNewFS"
+    # Verifica si el directorio actual es un plugin
+    if ! isPlugin .
+        return 1
+    end
+
+    set php php82-cli-fs-dev
+    set phpName fsTestPhp
+    set puerto 8088
+
+    # Verifica si el repositorio de FacturaScripts está descargado
+    if ! test -d $CACHE_DIR/facturascripts
+        echo "🚫 No se ha descargado el repositorio de FacturaScripts."
+        echo "Ejecuta 'myFSManager --install' para descargarlo."
+        return 1
+    end
+
+    # Iniciar contenedor MySQL
+    startMySQL
+
+    # Crear contenedor PHP
+    docker run --rm -dit \
+        --name $phpName \
+        --network $globalNetwork \
+        --workdir /root/facturascripts \
+        -p $puerto:$puerto \
+        $php \
+        bash
+
+    docker cp $CACHE_DIR/facturascripts/. $phpName:/root/facturascripts &&
+    set PLUGIN_NAME (basename (pwd)) &&
+    docker exec $phpName mkdir -p /root/facturascripts/Plugins/$PLUGIN_NAME &&
+    docker cp . $phpName:/root/facturascripts/Plugins/$PLUGIN_NAME &&
+    # docker exec -w /root/facturascripts/Plugins/$PLUGIN_NAME $phpName ls && 
+    docker exec -w /root/facturascripts $phpName composer install &&
+    docker exec -w /root/facturascripts $phpName npm install &&
+
+    echo "📦 Injectando el updater a FacturaScripts..." &&
+    docker cp "$ROOT_DIR/Rebuild.php" "$phpName:/root/facturascripts/Rebuild.php" &&
+    echo "⚙️ Ejecutando Rebuild.php..." &&
+    docker exec -it -w /root/facturascripts $phpName php Rebuild.php &&
+
+    # Ejecutar el servidor PHP para que el plugin esté disponible
+    echo "-----------------------------------------------------" &&
+    echo "✅ Instancia ejecutándose en http://localhost:$puerto" &&
+    echo "-----------------------------------------------------" &&
+    docker exec -it -w /root/facturascripts $phpName php -S 0.0.0.0:$puerto -t . index.php
+
+    echo "⏹️ Deteniendo $phpName y MySQL"
+    docker stop $phpName
+    stopMySQL
+
+
+
+
   case "*"
     echo "Comandos disponibles:"
     echo "  myFSManager --install"
     echo "  myFSManager --runPluginTests"
     echo "  myFSManager --runFSTests"
     echo "  myFSManager --runFSInstance"
+    echo "  myFSManager --runFSPluginIntoNewFS"
 end
