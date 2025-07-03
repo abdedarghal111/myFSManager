@@ -293,7 +293,8 @@ switch $argv[1]
     docker cp . $phpName:/root/facturascripts &&
     docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
     docker exec -w /root/facturascripts $phpName cat config.php &&
-    docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-api.xml Test/API/* --verbose
+    docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit
+    # para los test de api: docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-api.xml Test/API/* --verbose
 
     #./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
 
