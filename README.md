@@ -6,6 +6,8 @@ Trabaja sobre dockers volátiles a medida para FS.
 
 Monta un entorno virtual con su propia red y base de datos.
 
+Cuando monta el entorno automáticamente realiza la configuración por defecto y te lleva a la pestaña de plugins.
+
 # Funcionalidades
 
 De momento he creado las siguientes funcionalidades:

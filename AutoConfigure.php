@@ -140,15 +140,17 @@ if ($user->loadFromCode('admin')) {
 }
 
 // ==================== Paso 10: Carga de Modelos ====================
+echo "Cargando modelos: ";
 $modelsFolder = Tools::folder('Dinamic', 'Model');
 foreach (Tools::folderScan($modelsFolder) as $fileName) {
     if ('.php' === substr($fileName, -4)) {
         $name = substr($fileName, 0, -4);
         $className = '\\FacturaScripts\\Dinamic\\Model\\' . $name;
         new $className();
-        echo "✔ $name OK\n";
+        echo ".";// echo "✔ $name OK\n";
     }
 }
+echo "\n";
 
 // ==================== Final ====================
 echo "✔ Setup inicial completado correctamente.\n";
