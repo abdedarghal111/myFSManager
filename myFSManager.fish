@@ -342,9 +342,9 @@ switch $argv[1]
     echo "⚙️ Sobrescribiendo config.php..." &&
     docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
     echo "📦 Injectando el updater a FacturaScripts..." &&
-    docker cp "$ROOT_DIR/Rebuild.php" "$phpName:/root/facturascripts/Rebuild.php" &&
-    echo "⚙️ Ejecutando Rebuild.php..." &&
-    docker exec -it -w /root/facturascripts $phpName php Rebuild.php &&
+    docker cp "$ROOT_DIR/AutoConfigure.php" "$phpName:/root/facturascripts/AutoConfigure.php" &&
+    echo "⚙️ Ejecutando AutoConfigure.php..." &&
+    docker exec -it -w /root/facturascripts $phpName php AutoConfigure.php &&
     echo "-----------------------------------------------------" &&
     echo "✅ Instancia ejecutándose en http://localhost:$puerto" &&
     echo "-----------------------------------------------------" &&
@@ -396,9 +396,9 @@ switch $argv[1]
     docker exec -w /root/facturascripts $phpName npm install &&
 
     echo "📦 Injectando el updater a FacturaScripts..." &&
-    docker cp "$ROOT_DIR/Rebuild.php" "$phpName:/root/facturascripts/Rebuild.php" &&
-    echo "⚙️ Ejecutando Rebuild.php..." &&
-    docker exec -it -w /root/facturascripts $phpName php Rebuild.php &&
+    docker cp "$ROOT_DIR/AutoConfigure.php" "$phpName:/root/facturascripts/AutoConfigure.php" &&
+    echo "⚙️ Ejecutando AutoConfigure.php..." &&
+    docker exec -it -w /root/facturascripts $phpName php AutoConfigure.php &&
 
     # Ejecutar el servidor PHP para que el plugin esté disponible
     echo "-----------------------------------------------------" &&
