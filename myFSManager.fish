@@ -293,7 +293,26 @@ switch $argv[1]
     docker cp . $phpName:/root/facturascripts &&
     docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
     docker exec -w /root/facturascripts $phpName cat config.php &&
-    docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit
+    
+    # Captura y muestra el parámetro opcional
+    begin
+      set phpunitParam ""
+      if test (count $argv) -ge 2
+          set phpunitParam $argv[2]
+          echo "🧪 Ejecutando PHPUnit con parámetro: $phpunitParam"
+      else
+          echo "🧪 Ejecutando PHPUnit (todos los tests)"
+      end
+
+      # 👇 Si hay parámetro lo usa, si no, ejecuta todo
+      if test -n "$phpunitParam"
+          docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit $phpunitParam
+      else
+          docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit
+      end
+    end
+
+
     # para los test de api: docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-api.xml Test/API/* --verbose
 
     #./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
@@ -417,7 +436,7 @@ switch $argv[1]
     echo "Comandos disponibles:"
     echo "  myFSManager --install"
     echo "  myFSManager --runPluginTests"
-    echo "  myFSManager --runFSTests"
+    echo "  myFSManager --runFSTests [\"./vendor/bin/phpunit Params\"]"
     echo "  myFSManager --runFSInstance"
     echo "  myFSManager --runFSPluginIntoNewFS"
 end
