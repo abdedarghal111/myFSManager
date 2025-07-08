@@ -15,8 +15,9 @@ De momento he creado las siguientes funcionalidades:
 - install: instala el repositorio en cache y los dockers necesarios para ello
 - runPluginTests: copia el plugin sobre el que se esté trabajando en un docker con fs de la rama master y una base de datos vacía y ejecuta sus tests (como si fuera github actions)
 - runFSTests: copia el repositorio sobre el que se esté trabajando de FS sobre el que se esté trabajando y ejecuta los tests al estilo github actions con una base de datos vacía. Se le pueden agregar parámetros a phpunit
-- runFSInstance: copia el directorio actual de FS y lo pone en funcionamiento dentro de un docker para poder probarlo
+- runFSInstance: copia el directorio actual de FS y lo pone en funcionamiento dentro de un docker para poder probarlo. Se le puede agregar datos iniciales para que esté llena la base de datos.
 - runFSPluginIntoNewFS: copia el plugin sobre el que se esté trabajando y lo coloca en una instancia de fs de la ultima versión de la rama master y abre servidor para poder probarlo
+- stopAll: detiene los dockers relacionados con este script.
 
 # Dependencias
 
