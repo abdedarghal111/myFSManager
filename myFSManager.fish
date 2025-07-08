@@ -364,6 +364,15 @@ switch $argv[1]
     docker cp "$ROOT_DIR/AutoConfigure.php" "$phpName:/root/facturascripts/AutoConfigure.php" &&
     echo "⚙️ Ejecutando AutoConfigure.php..." &&
     docker exec -it -w /root/facturascripts $phpName php AutoConfigure.php &&
+    
+    # 👇 Si existe el parámetro --addInitialData, si no, ignora
+    begin
+      if test (count $argv) -ge 2; and test $argv[2] = "--addInitialData"
+          echo "⚙️ Injectando seeders a FacturaScripts..." &&
+          docker cp "$ROOT_DIR/AddSeeders.php" "$phpName:/root/facturascripts/AddSeeders.php" &&
+          docker exec -it -w /root/facturascripts $phpName php AddSeeders.php
+      end
+    end &&
     echo "-----------------------------------------------------" &&
     echo "✅ Instancia ejecutándose en http://localhost:$puerto" &&
     echo "-----------------------------------------------------" &&
@@ -432,11 +441,25 @@ switch $argv[1]
 
 
 
+  case "--stopAll"
+    echo "⏹️ Buscando y deteniendo contenedores Docker relacionados con MyFSManager..."
+
+    for container in (docker ps --format "{{.Names}}" | grep -E '^fs(Test|Web)Php$|^fsTestMysql$')
+        echo "🛑 Deteniendo contenedor: $container"
+        docker stop $container
+    end
+
+    echo "✅ Todos los contenedores relevantes detenidos."
+
+
+
+
   case "*"
     echo "Comandos disponibles:"
     echo "  myFSManager --install"
     echo "  myFSManager --runPluginTests"
     echo "  myFSManager --runFSTests [\"./vendor/bin/phpunit Params\"]"
-    echo "  myFSManager --runFSInstance"
+    echo "  myFSManager --runFSInstance [--addInitialData]"
     echo "  myFSManager --runFSPluginIntoNewFS"
+    echo "  myFSManager --stopAll"
 end
