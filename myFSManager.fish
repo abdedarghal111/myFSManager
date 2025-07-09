@@ -88,7 +88,19 @@ function startMySQL
 end
 
 function stopMySQL
-  docker stop $mysqlName
+  # docker stop $mysqlName
+  docker kill $mysqlName
+end
+
+function stopAllProcesses
+  echo "⏹️ Buscando y deteniendo contenedores Docker relacionados con MyFSManager..."
+
+  for container in (docker ps --format "{{.Names}}" | grep -E '^fs(Test|Web)Php$|^fsTestMysql$')
+      echo "🛑 Deteniendo contenedor: $container"
+      docker stop $container
+  end
+
+  echo "✅ Todos los contenedores relevantes detenidos."
 end
 
 
@@ -208,6 +220,7 @@ switch $argv[1]
     set php php82-cli-fs-dev
     set phpName fsTestPhp
 
+    stopAllProcesses
     # run mysql
     startMySQL
 
@@ -255,8 +268,8 @@ switch $argv[1]
       ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
     '
 
-    docker stop $phpName
-    # docker rm $phpName
+    # docker stop $phpName
+    docker kill $phpName
     stopMySQL
 
 
@@ -278,6 +291,7 @@ switch $argv[1]
     set php php82-cli-fs-dev
     set phpName fsTestPhp
 
+    stopAllProcesses
     # run mysql
     startMySQL
 
@@ -317,7 +331,8 @@ switch $argv[1]
 
     #./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
 
-    docker stop $phpName
+    # docker stop $phpName
+    docker kill $phpName
     stopMySQL
 
 
@@ -340,6 +355,7 @@ switch $argv[1]
         return 1
     end
 
+    stopAllProcesses
     # Iniciar contenedor MySQL
     startMySQL
 
@@ -380,7 +396,8 @@ switch $argv[1]
 
 
     echo "⏹️ Deteniendo $phpName y MySQL"
-    docker stop $phpName
+    # docker stop $phpName
+    docker kill $phpName
     stopMySQL
 
 
@@ -403,6 +420,7 @@ switch $argv[1]
         return 1
     end
 
+    stopAllProcesses
     # Iniciar contenedor MySQL
     startMySQL
 
@@ -435,21 +453,15 @@ switch $argv[1]
     docker exec -it -w /root/facturascripts $phpName php -S 0.0.0.0:$puerto -t . index.php
 
     echo "⏹️ Deteniendo $phpName y MySQL"
-    docker stop $phpName
+    #docker stop $phpName
+    docker kill $phpName
     stopMySQL
 
 
 
 
   case "--stopAll"
-    echo "⏹️ Buscando y deteniendo contenedores Docker relacionados con MyFSManager..."
-
-    for container in (docker ps --format "{{.Names}}" | grep -E '^fs(Test|Web)Php$|^fsTestMysql$')
-        echo "🛑 Deteniendo contenedor: $container"
-        docker stop $container
-    end
-
-    echo "✅ Todos los contenedores relevantes detenidos."
+    stopAllProcesses
 
 
 
