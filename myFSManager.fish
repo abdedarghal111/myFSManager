@@ -21,11 +21,15 @@ set DOCKERS_DIR "$ROOT_DIR/.dockers"
 
 set globalNetwork fs-network
 set mysql mysql-latest-fs-dev
-set mysqlName fsTestMysql
+set mariadb mariadb-latest-fs-dev
 set adminer adminer-fs-dev
+set databaseName "fsTestDatabase"
 
 set PHP_VERSIONS 84 82 80 74 72 70
-set DOCKER_IMAGES adminer mysql:latest
+set DOCKER_IMAGES adminer mysql:latest mariadb:latest
+
+# Base de datos: mysql o mariadb
+set databaseType "mariadb"
 
 function isPlugin
   set target $argv[1]
@@ -69,35 +73,63 @@ function isFS
     return 0
 end
 
-function startMySQL
-  docker run -d --rm \
-    --name $mysqlName \
-    --network $globalNetwork \
-    --tmpfs /var/lib/mysql \
-    -e MYSQL_ROOT_PASSWORD=root \
-    -e MYSQL_DATABASE=facturascripts \
-    $mysql
-    # -p 3307:3306 \
+function startDatabase
+  if test $databaseType = "mysql"
+    echo "🚀 Iniciando contenedor MySQL..."
+    docker run -d --rm \
+      --name $databaseName \
+      --network $globalNetwork \
+      --tmpfs /var/lib/mysql \
+      -e MYSQL_ROOT_PASSWORD=root \
+      -e MYSQL_DATABASE=facturascripts \
+      $mysql
+      # -p 3307:3306 \
 
-  echo "⏳ Esperando a que MySQL esté listo..."
-  while not docker exec $mysqlName mysqladmin ping -uroot -proot --silent > /dev/null 2>&1
-    sleep 0.3
+    echo "⏳ Esperando a que MySQL esté listo..."
+    #while not docker exec $databaseName mysqladmin ping -uroot -proot --silent > /dev/null 2>&1
+    while not docker exec $databaseName mysql --user=root --password=root -e "status" &> /dev/null
+      sleep 0.3
+    end
+    # sleep 2
+    echo "✅ MySQL listo."
+  
+  else if test $databaseType = "mariadb"
+    echo "🚀 Iniciando contenedor MariaDB..."
+    docker run -d --rm \
+      --name $databaseName \
+      --network $globalNetwork \
+      --tmpfs /var/lib/mysql \
+      # -e MARIADB_USER=root \
+      -e MARIADB_PASSWORD=root \
+      -e MARIADB_ROOT_PASSWORD=root \
+      -e MARIADB_DATABASE=facturascripts \
+      $mariadb
+      # -p 3307:3306 \
+
+    echo "⏳ Esperando a que MariaDB esté listo..."
+    # while not docker exec $databaseName mariadb-admin ping -h"localhost" --silent
+    while not docker exec $databaseName mariadb --user=root --password=root -e "status" &> /dev/null
+      sleep 0.5
+    end
+    echo "✅ MariaDB listo."
+  
+  else
+    echo "❌ Tipo de base de datos no reconocido: $databaseType"
+    return 1
   end
-  sleep 2
-  echo "✅ MySQL listo."
 end
 
-function stopMySQL
-  # docker stop $mysqlName
-  docker kill $mysqlName
+function stopDatabase
+  # docker stop $databaseName
+  docker kill $databaseName
 end
 
 function stopAllProcesses
   echo "⏹️ Buscando y deteniendo contenedores Docker relacionados con MyFSManager..."
 
-  for container in (docker ps --format "{{.Names}}" | grep -E '^fs(Test|Web)Php$|^fsTestMysql$')
-      echo "🛑 Deteniendo contenedor: $container"
-      docker stop $container
+  for container in (docker ps --format "{{.Names}}" | grep -E '^fs(Test|Web)Php$|^fsTestDatabase$')
+    echo "🛑 Deteniendo contenedor: $container"
+    docker stop $container
   end
 
   echo "✅ Todos los contenedores relevantes detenidos."
@@ -105,16 +137,24 @@ end
 
 
 if not test -d $DOCKERS_DIR
-    mkdir -p $DOCKERS_DIR
-    echo "Directorio '.dockers' creado"
+  mkdir -p $DOCKERS_DIR
+  echo "Directorio '.dockers' creado"
 end
 
 if not test -d $CACHE_DIR
-    mkdir -p $CACHE_DIR
-    echo "Directorio '.cache' creado"
+  mkdir -p $CACHE_DIR
+  echo "Directorio '.cache' creado"
 end
 
-
+switch $databaseType
+  case "mysql"
+    set mysql mysql:latest
+  case "mariadb"
+    set mysql mariadb:latest
+  case "*"
+    echo "❌ Tipo de base de datos desconocido: $databaseType"
+    exit 1
+end
 
 
 switch $argv[1]
@@ -182,7 +222,7 @@ switch $argv[1]
     define('FS_ROUTE', '');
 
     define('FS_DB_TYPE', 'mysql');
-    define('FS_DB_HOST', '$mysqlName');
+    define('FS_DB_HOST', '$databaseName');
     define('FS_DB_PORT', '3306');
     define('FS_DB_USER', 'root');
 
@@ -194,7 +234,7 @@ switch $argv[1]
     define('FS_MYSQL_COLLATE', 'utf8_bin');
 
     define('FS_HIDDEN_PLUGINS', '');
-    define('FS_DEBUG', false);
+    define('FS_DEBUG', true);
     define('FS_DISABLE_ADD_PLUGINS', false);
     define('FS_DISABLE_RM_PLUGINS', false);
     define('FS_NF0', 2);
@@ -222,7 +262,7 @@ switch $argv[1]
 
     stopAllProcesses
     # run mysql
-    startMySQL
+    startDatabase
 
     if test -f ./composer.son
       composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
@@ -270,7 +310,7 @@ switch $argv[1]
 
     # docker stop $phpName
     docker kill $phpName
-    stopMySQL
+    stopDatabase
 
 
 
@@ -293,7 +333,7 @@ switch $argv[1]
 
     stopAllProcesses
     # run mysql
-    startMySQL
+    startDatabase
 
 
     docker run --rm -dit \
@@ -333,14 +373,14 @@ switch $argv[1]
 
     # docker stop $phpName
     docker kill $phpName
-    stopMySQL
+    stopDatabase
 
 
 
 
   case "--runFSInstance"
   
-    set php php82-cli-fs-dev
+    set php php80-cli-fs-dev
     set phpName fsWebPhp
     set puerto 8088
 
@@ -357,7 +397,7 @@ switch $argv[1]
 
     stopAllProcesses
     # Iniciar contenedor MySQL
-    startMySQL
+    startDatabase
 
     # Crear contenedor PHP
     docker run --rm -dit \
@@ -398,7 +438,7 @@ switch $argv[1]
     echo "⏹️ Deteniendo $phpName y MySQL"
     # docker stop $phpName
     docker kill $phpName
-    stopMySQL
+    stopDatabase
 
 
 
@@ -422,7 +462,7 @@ switch $argv[1]
 
     stopAllProcesses
     # Iniciar contenedor MySQL
-    startMySQL
+    startDatabase
 
     # Crear contenedor PHP
     docker run --rm -dit \
@@ -455,7 +495,7 @@ switch $argv[1]
     echo "⏹️ Deteniendo $phpName y MySQL"
     #docker stop $phpName
     docker kill $phpName
-    stopMySQL
+    stopDatabase
 
 
 
