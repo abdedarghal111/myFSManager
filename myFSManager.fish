@@ -31,6 +31,9 @@ set DOCKER_IMAGES adminer mysql:latest mariadb:latest
 # Base de datos: mysql o mariadb
 set databaseType "mariadb"
 
+# Valid PHP versions
+set activatedPhpVersion "82"
+
 function isPlugin
   set target $argv[1]
 
@@ -156,6 +159,22 @@ switch $databaseType
     exit 1
 end
 
+# Verificar que activatedPhpVersion esté en la lista de PHP_VERSIONS
+begin 
+  set isValid 0
+  for vers in $PHP_VERSIONS
+      if test $vers = $activatedPhpVersion
+          set isValid 1
+          break
+      end
+  end
+
+  if test $isValid -eq 0
+      echo "❌ Versión de PHP no válida: $activatedPhpVersion"
+      echo "✔️  Versiones válidas: $PHP_VERSIONS"
+      exit 1
+  end
+end
 
 switch $argv[1]
   case "--install"
@@ -257,7 +276,7 @@ switch $argv[1]
         return 1
     end
 
-    set php php82-cli-fs-dev
+    set php "php$activatedPhpVersion-cli-fs-dev"
     set phpName fsTestPhp
 
     stopAllProcesses
@@ -328,7 +347,7 @@ switch $argv[1]
       return 1
     end
 
-    set php php82-cli-fs-dev
+    set php "php$activatedPhpVersion-cli-fs-dev"
     set phpName fsTestPhp
 
     stopAllProcesses
@@ -352,7 +371,7 @@ switch $argv[1]
     begin
       set phpunitParam ""
       if test (count $argv) -ge 2
-          set phpunitParam $argv[2]
+          set phpunitParam $argv[2..-1]
           echo "🧪 Ejecutando PHPUnit con parámetro: $phpunitParam"
       else
           echo "🧪 Ejecutando PHPUnit (todos los tests)"
@@ -380,7 +399,7 @@ switch $argv[1]
 
   case "--runFSInstance"
   
-    set php php80-cli-fs-dev
+    set php "php$activatedPhpVersion-cli-fs-dev"
     set phpName fsWebPhp
     set puerto 8088
 
@@ -449,7 +468,7 @@ switch $argv[1]
         return 1
     end
 
-    set php php82-cli-fs-dev
+    set php "php$activatedPhpVersion-cli-fs-dev"
     set phpName fsTestPhp
     set puerto 8088
 
