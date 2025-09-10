@@ -231,7 +231,7 @@ switch $argv[1]
       touch MyFiles/plugins.json
     end
 
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
 
     echo "<?php
 
@@ -284,7 +284,7 @@ switch $argv[1]
     startDatabase
 
     if test -f ./composer.son
-      composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+      composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
     end
 
     if ! test -d $CACHE_DIR/facturascripts
@@ -295,7 +295,7 @@ switch $argv[1]
 
     cd $CACHE_DIR/facturascripts
     git pull
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
     cd $CURRENT_DIR
 
     docker run --rm -dit \
@@ -310,11 +310,11 @@ switch $argv[1]
     set PLUGIN_NAME (basename (pwd)) &&
     docker exec $phpName mkdir -p /root/facturascripts/Plugins/$PLUGIN_NAME &&
     docker cp . $phpName:/root/facturascripts/Plugins/$PLUGIN_NAME &&
-    docker exec -w /root/facturascripts $phpName composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader &&
+    docker exec -w /root/facturascripts $phpName composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q &&
     docker exec -w /root/facturascripts $phpName cp -r Plugins/$PLUGIN_NAME/Test/main/. Test/Plugins/ &&
     docker exec -w /root/facturascripts/Plugins/$PLUGIN_NAME $phpName bash -c '
       if [ -f composer.json ]; then
-        composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+        composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
       else
         echo "-------------------------------------------"
         echo "El plugin no tiene dependencias de Composer"
@@ -362,7 +362,7 @@ switch $argv[1]
       $php \
       bash
 
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader &&
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q &&
     docker cp . $phpName:/root/facturascripts &&
     docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
     docker exec -w /root/facturascripts $phpName cat config.php &&
@@ -428,7 +428,7 @@ switch $argv[1]
         bash
 
     echo "📦 Instalando dependencias de PHP con Composer..." &&
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader &&
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q &&
     echo "📦 Instalando dependencias de JavaScript con NPM..." &&
     npm install &&
     echo "📦 Copiando instancia de FacturaScripts..." &&
@@ -497,7 +497,7 @@ switch $argv[1]
     docker exec $phpName mkdir -p /root/facturascripts/Plugins/$PLUGIN_NAME &&
     docker cp . $phpName:/root/facturascripts/Plugins/$PLUGIN_NAME &&
     # docker exec -w /root/facturascripts/Plugins/$PLUGIN_NAME $phpName ls && 
-    docker exec -w /root/facturascripts $phpName composer install &&
+    docker exec -w /root/facturascripts $phpName composer install --no-dev -o -q &&
     docker exec -w /root/facturascripts $phpName npm install &&
 
     echo "📦 Injectando el updater a FacturaScripts..." &&
