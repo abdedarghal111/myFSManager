@@ -28,4 +28,4 @@ De momento he creado las siguientes funcionalidades:
 - git
 - composer
 - php
-- npm
+- pnpm

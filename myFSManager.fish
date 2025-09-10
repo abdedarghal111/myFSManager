@@ -195,7 +195,7 @@ switch $argv[1]
         echo "ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/" >> $FILE
         echo "RUN install-php-extensions json fileinfo simplexml zip dom pdo pdo_mysql mysqli pgsql pdo_pgsql bcmath gd curl soap" >> $FILE
         echo "RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer" >> $FILE
-        echo "RUN apt update && apt install nodejs npm -y" >> $FILE
+        echo "RUN apt update && apt install -y nodejs pnpm" >> $FILE
         # echo "RUN apt update && apt install tree" >> $FILE
         echo "🐳 Construyendo imagen $NAME..."
         docker build --no-cache -f $FILE -t $DOCKER_TAG $DOCKERS_DIR
@@ -429,8 +429,8 @@ switch $argv[1]
 
     echo "📦 Instalando dependencias de PHP con Composer..." &&
     composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q &&
-    echo "📦 Instalando dependencias de JavaScript con NPM..." &&
-    npm install &&
+    echo "📦 Instalando dependencias de JavaScript con PNPM..." &&
+    pnpm install &&
     echo "📦 Copiando instancia de FacturaScripts..." &&
     docker cp . $phpName:/root/facturascripts &&
     echo "⚙️ Sobrescribiendo config.php..." &&
@@ -498,7 +498,7 @@ switch $argv[1]
     docker cp . $phpName:/root/facturascripts/Plugins/$PLUGIN_NAME &&
     # docker exec -w /root/facturascripts/Plugins/$PLUGIN_NAME $phpName ls && 
     docker exec -w /root/facturascripts $phpName composer install --no-dev -o -q &&
-    docker exec -w /root/facturascripts $phpName npm install &&
+    docker exec -w /root/facturascripts $phpName pnpm install &&
 
     echo "📦 Injectando el updater a FacturaScripts..." &&
     docker cp "$ROOT_DIR/AutoConfigure.php" "$phpName:/root/facturascripts/AutoConfigure.php" &&
