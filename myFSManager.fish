@@ -362,10 +362,22 @@ switch $argv[1]
       $php \
       bash
 
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q &&
     docker cp . $phpName:/root/facturascripts &&
-    docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
     docker exec -w /root/facturascripts $phpName cat config.php &&
+    # Instala dependencias dentro del contenedor
+
+    echo "📦 Instalando dependencias de PHP con Composer..."
+    docker exec -w /root/facturascripts $phpName composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q &&
+    
+    # Solo parchea la configuración de base de datos y ruta local
+    echo "📦 Injectando datos a config.php"
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_HOST'.*|define('FS_DB_HOST', '$databaseName');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_PORT'.*|define('FS_DB_PORT', '3306');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_USER'.*|define('FS_DB_USER', 'root');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_PASS'.*|define('FS_DB_PASS', 'root');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_NAME'.*|define('FS_DB_NAME', 'facturascripts');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_ROUTE'.*|define('FS_ROUTE', '');|" config.php || true &&
+
     
     # Captura y muestra el parámetro opcional
     begin
@@ -375,6 +387,8 @@ switch $argv[1]
           echo "🧪 Ejecutando PHPUnit con parámetro: $phpunitParam"
       else
           echo "🧪 Ejecutando PHPUnit (todos los tests)"
+          # docker exec -w /root/facturascripts $phpName cat config.php
+          # docker exec -w /root/facturascripts $phpName ls
       end
 
       # 👇 Si hay parámetro lo usa, si no, ejecuta todo
