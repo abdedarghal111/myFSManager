@@ -193,7 +193,7 @@ switch $argv[1]
 
         echo "FROM php:$TAG-cli" > $FILE
         echo "ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/" >> $FILE
-        echo "RUN install-php-extensions json fileinfo simplexml zip dom pdo pdo_mysql mysqli pgsql pdo_pgsql bcmath gd curl soap" >> $FILE
+        echo "RUN install-php-extensions json fileinfo simplexml zip dom pdo pdo_mysql mysqli pgsql pdo_pgsql bcmath gd curl soap ftp" >> $FILE
         echo "RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer" >> $FILE
         echo "RUN apt update && apt install -y nodejs npm && npm install -g pnpm" >> $FILE
         # echo "RUN apt update && apt install tree" >> $FILE
