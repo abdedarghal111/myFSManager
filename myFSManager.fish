@@ -322,10 +322,16 @@ switch $argv[1]
       fi
     ' &&
     docker exec -w /root/facturascripts $phpName php Test/install-plugins.php &&
-    docker exec -w /root/facturascripts $phpName bash -c '
-      chmod +x ./vendor/bin/phpunit
-      ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
-    '
+    docker exec -w /root/facturascripts $phpName chmod +x ./vendor/bin/phpunit &&
+    begin
+      if test (count $argv) -ge 2
+          set phpunitArgs $argv[2..-1]
+          echo "🧪 Ejecutando PHPUnit con argumentos: $phpunitArgs"
+          docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose $phpunitArgs
+      else
+          docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
+      end
+    end
 
     # docker stop $phpName
     docker kill $phpName
@@ -393,6 +399,7 @@ switch $argv[1]
 
       # 👇 Si hay parámetro lo usa, si no, ejecuta todo
       if test -n "$phpunitParam"
+          echo "🧪 Ejecutando PHPUnit con parámetro: $phpunitParam"
           docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit $phpunitParam
       else
           docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit
