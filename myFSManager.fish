@@ -231,7 +231,7 @@ switch $argv[1]
       touch MyFiles/plugins.json
     end
 
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q
 
     echo "<?php
 
@@ -284,7 +284,7 @@ switch $argv[1]
     startDatabase
 
     if test -f ./composer.son
-      composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
+      composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q
     end
 
     if ! test -d $CACHE_DIR/facturascripts
@@ -295,7 +295,7 @@ switch $argv[1]
 
     cd $CACHE_DIR/facturascripts
     git pull
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q
     cd $CURRENT_DIR
 
     docker run --rm -dit \
@@ -310,11 +310,11 @@ switch $argv[1]
     set PLUGIN_NAME (basename (pwd)) &&
     docker exec $phpName mkdir -p /root/facturascripts/Plugins/$PLUGIN_NAME &&
     docker cp . $phpName:/root/facturascripts/Plugins/$PLUGIN_NAME &&
-    docker exec -w /root/facturascripts $phpName composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q &&
+    docker exec -w /root/facturascripts $phpName composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q &&
     docker exec -w /root/facturascripts $phpName cp -r Plugins/$PLUGIN_NAME/Test/main/. Test/Plugins/ &&
     docker exec -w /root/facturascripts/Plugins/$PLUGIN_NAME $phpName bash -c '
       if [ -f composer.json ]; then
-        composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q
+        composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q
       else
         echo "-------------------------------------------"
         echo "El plugin no tiene dependencias de Composer"
@@ -322,10 +322,16 @@ switch $argv[1]
       fi
     ' &&
     docker exec -w /root/facturascripts $phpName php Test/install-plugins.php &&
-    docker exec -w /root/facturascripts $phpName bash -c '
-      chmod +x ./vendor/bin/phpunit
-      ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
-    '
+    docker exec -w /root/facturascripts $phpName chmod +x ./vendor/bin/phpunit &&
+    begin
+      if test (count $argv) -ge 2
+          set phpunitArgs $argv[2..-1]
+          echo "🧪 Ejecutando PHPUnit con argumentos: $phpunitArgs"
+          docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose $phpunitArgs
+      else
+          docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit -c phpunit-plugins.xml --verbose
+      end
+    end
 
     # docker stop $phpName
     docker kill $phpName
@@ -393,6 +399,7 @@ switch $argv[1]
 
       # 👇 Si hay parámetro lo usa, si no, ejecuta todo
       if test -n "$phpunitParam"
+          echo "🧪 Ejecutando PHPUnit con parámetro: $phpunitParam"
           docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit $phpunitParam
       else
           docker exec -it -w /root/facturascripts $phpName ./vendor/bin/phpunit
@@ -412,7 +419,7 @@ switch $argv[1]
 
 
   case "--runFSInstance"
-  
+
     set php "php$activatedPhpVersion-cli-fs-dev"
     set phpName fsWebPhp
     set puerto 8088
@@ -442,9 +449,10 @@ switch $argv[1]
         bash
 
     echo "📦 Instalando dependencias de PHP con Composer..." &&
-    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-dev -o -q &&
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q &&
     echo "📦 Instalando dependencias de JavaScript con PNPM..." &&
     pnpm install &&
+
     echo "📦 Copiando instancia de FacturaScripts..." &&
     docker cp . $phpName:/root/facturascripts &&
     echo "⚙️ Sobrescribiendo config.php..." &&
@@ -511,7 +519,7 @@ switch $argv[1]
     docker exec $phpName mkdir -p /root/facturascripts/Plugins/$PLUGIN_NAME &&
     docker cp . $phpName:/root/facturascripts/Plugins/$PLUGIN_NAME &&
     # docker exec -w /root/facturascripts/Plugins/$PLUGIN_NAME $phpName ls && 
-    docker exec -w /root/facturascripts $phpName composer install --no-dev -o -q &&
+    docker exec -w /root/facturascripts $phpName composer install -o -q &&
     docker exec -w /root/facturascripts $phpName pnpm install &&
 
     echo "📦 Injectando el updater a FacturaScripts..." &&
