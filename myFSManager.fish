@@ -541,6 +541,68 @@ switch $argv[1]
 
 
 
+  case "--runBareBoneFacturascripts"
+    set php "php$activatedPhpVersion-cli-fs-dev"
+    set phpName fsWebPhp
+    set puerto 8088
+
+    if ! isFS .
+        echo "🚫 Este directorio no parece un proyecto FacturaScripts válido."
+        return 1
+    end
+
+    if ! test -d $CACHE_DIR/facturascripts
+        echo "🚫 No se ha descargado el repositorio de FacturaScripts."
+        echo "Ejecuta 'myFSManager --install' para descargarlo."
+        return 1
+    end
+
+    stopAllProcesses
+    # Iniciar contenedor MySQL
+    startDatabase
+
+    # Crear contenedor PHP
+    docker run --rm -dit \
+        --name $phpName \
+        --network $globalNetwork \
+        --workdir /root/facturascripts \
+        -p $puerto:$puerto \
+        $php \
+        bash
+
+    echo "📦 Instalando dependencias de PHP con Composer..." &&
+    composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader -o -q &&
+    echo "📦 Instalando dependencias de JavaScript con PNPM..." &&
+    pnpm install &&
+
+    if test -f config.php
+        rm config.php
+    end
+
+    echo "📦 Copiando instancia de FacturaScripts..." &&
+    docker cp . $phpName:/root/facturascripts &&
+    echo "⚙️ Eliminando config.php..." &&
+    docker exec -w /root/facturascripts $phpName rm -f config.php &&
+
+    echo "-----------------------------------------------------" &&
+    echo "✅ Credenciales de la base de datos:" &&
+    echo "   Host: $databaseName" &&
+    echo "   Usuario: root" &&
+    echo "   Contraseña: root" &&
+    echo "-----------------------------------------------------" &&
+    echo "✅ Instancia ejecutándose en http://localhost:$puerto" &&
+    echo "-----------------------------------------------------" &&
+    docker exec -it -w /root/facturascripts $phpName php -S 0.0.0.0:$puerto -t . index.php
+
+
+    echo "⏹️ Deteniendo $phpName y MySQL"
+    # docker stop $phpName
+    docker kill $phpName
+    stopDatabase
+
+
+
+
   case "--stopAll"
     stopAllProcesses
 
@@ -554,5 +616,6 @@ switch $argv[1]
     echo "  myFSManager --runFSTests [\"./vendor/bin/phpunit Params\"]"
     echo "  myFSManager --runFSInstance [--addInitialData]"
     echo "  myFSManager --runFSPluginIntoNewFS"
+    echo "  myFSManager --runBareBoneFacturascripts"
     echo "  myFSManager --stopAll"
 end
