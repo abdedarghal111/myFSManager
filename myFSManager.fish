@@ -22,17 +22,41 @@ set DOCKERS_DIR "$ROOT_DIR/.dockers"
 set globalNetwork fs-network
 set mysql mysql-latest-fs-dev
 set mariadb mariadb-latest-fs-dev
+set postgres postgres-latest-fs-dev
 set adminer adminer-fs-dev
 set databaseName "fsTestDatabase"
 
 set PHP_VERSIONS 84 82 80 74 72 70
-set DOCKER_IMAGES adminer mysql:latest mariadb:latest
+set DOCKER_IMAGES adminer mysql:latest mariadb:latest postgres:latest
 
-# Base de datos: mysql o mariadb
+# Base de datos: mysql, mariadb o postgres
 set databaseType "mariadb"
 
 # Valid PHP versions
 set activatedPhpVersion "82"
+
+# Argument parsing
+set new_argv
+set i 1
+while test $i -le (count $argv)
+    switch $argv[$i]
+        case "--db-type"
+            set i (math $i + 1)
+            set databaseType $argv[$i]
+        case "*"
+            set -a new_argv $argv[$i]
+    end
+    set i (math $i + 1)
+end
+set argv $new_argv
+# End argument parsing
+
+set db_type_php "mysql"
+set db_port "3306"
+if test "$databaseType" = "postgres"
+    set db_type_php "postgresql"
+    set db_port "5432"
+end
 
 function isPlugin
   set target $argv[1]
@@ -115,6 +139,23 @@ function startDatabase
       sleep 0.5
     end
     echo "✅ MariaDB listo."
+
+  else if test $databaseType = "postgres"
+    echo "🚀 Iniciando contenedor PostgreSQL..."
+    docker run -d --rm \
+      --name $databaseName \
+      --network $globalNetwork \
+      --tmpfs /var/lib/postgresql \
+      -e POSTGRES_USER=root \
+      -e POSTGRES_PASSWORD=root \
+      -e POSTGRES_DB=facturascripts \
+      $postgres
+
+    echo "⏳ Esperando a que PostgreSQL esté listo..."
+    while not docker exec $databaseName pg_isready -U postgres &> /dev/null
+      sleep 0.5
+    end
+    echo "✅ PostgreSQL listo."
   
   else
     echo "❌ Tipo de base de datos no reconocido: $databaseType"
@@ -154,6 +195,8 @@ switch $databaseType
     set mysql mysql:latest
   case "mariadb"
     set mysql mariadb:latest
+  case "postgres"
+    set postgres postgres:latest
   case "*"
     echo "❌ Tipo de base de datos desconocido: $databaseType"
     exit 1
@@ -240,9 +283,9 @@ switch $argv[1]
     define('FS_TIMEZONE', 'Europe/Madrid');
     define('FS_ROUTE', '');
 
-    define('FS_DB_TYPE', 'mysql');
+    define('FS_DB_TYPE', '$db_type_php');
     define('FS_DB_HOST', '$databaseName');
-    define('FS_DB_PORT', '3306');
+    define('FS_DB_PORT', '$db_port');
     define('FS_DB_USER', 'root');
 
     define('FS_DB_NAME', 'facturascripts');
@@ -377,8 +420,10 @@ switch $argv[1]
     
     # Solo parchea la configuración de base de datos y ruta local
     echo "📦 Injectando datos a config.php"
+    
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_TYPE'.*|define('FS_DB_TYPE', '$db_type_php');|" config.php || true &&
     docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_HOST'.*|define('FS_DB_HOST', '$databaseName');|" config.php || true &&
-    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_PORT'.*|define('FS_DB_PORT', '3306');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_PORT'.*|define('FS_DB_PORT', '$db_port');|" config.php || true &&
     docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_USER'.*|define('FS_DB_USER', 'root');|" config.php || true &&
     docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_PASS'.*|define('FS_DB_PASS', 'root');|" config.php || true &&
     docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_NAME'.*|define('FS_DB_NAME', 'facturascripts');|" config.php || true &&
@@ -457,6 +502,12 @@ switch $argv[1]
     docker cp . $phpName:/root/facturascripts &&
     echo "⚙️ Sobrescribiendo config.php..." &&
     docker cp "$CACHE_DIR/facturascripts/config.php" "$phpName:/root/facturascripts/config.php" &&
+    echo "⚙️ Ajustando config.php para $databaseType..." &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_TYPE'.*|define('FS_DB_TYPE', '$db_type_php');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_HOST'.*|define('FS_DB_HOST', '$databaseName');|" config.php || true &&
+    docker exec -w /root/facturascripts $phpName sed -ri "s|define\('FS_DB_PORT'.*|define('FS_DB_PORT', '$db_port');|" config.php || true &&
+    # echo "📄 Contenido de config.php después de ajustar:" &&
+    # docker exec -w /root/facturascripts $phpName cat config.php &&
     echo "📦 Injectando el updater a FacturaScripts..." &&
     docker cp "$ROOT_DIR/AutoConfigure.php" "$phpName:/root/facturascripts/AutoConfigure.php" &&
     echo "⚙️ Ejecutando AutoConfigure.php..." &&
@@ -612,10 +663,10 @@ switch $argv[1]
   case "*"
     echo "Comandos disponibles:"
     echo "  myFSManager --install"
-    echo "  myFSManager --runPluginTests"
-    echo "  myFSManager --runFSTests [\"./vendor/bin/phpunit Params\"]"
-    echo "  myFSManager --runFSInstance [--addInitialData]"
-    echo "  myFSManager --runFSPluginIntoNewFS"
-    echo "  myFSManager --runBareBoneFacturascripts"
+    echo "  myFSManager --runPluginTests [--db-type mysql|mariadb|postgres]"
+    echo "  myFSManager --runFSTests [--db-type mysql|mariadb|postgres] [\"./vendor/bin/phpunit Params\"]"
+    echo "  myFSManager --runFSInstance [--db-type mysql|mariadb|postgres] [--addInitialData]"
+    echo "  myFSManager --runFSPluginIntoNewFS [--db-type mysql|mariadb|postgres]"
+    echo "  myFSManager --runBareBoneFacturascripts [--db-type mysql|mariadb|postgres]"
     echo "  myFSManager --stopAll"
 end
